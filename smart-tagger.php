@@ -110,16 +110,15 @@ function ajax_gettags() {
 	die( "tagger_showtags('" . tagger_ajax_escape(implode(',',$tags)) . "')" );
 }
 function gettags($title,$content,$tags) {
-	//if(!current_user_can('publish_posts')) {
-	//	die("alert('You cannot edit posts')");
-	//}
-	$content=preg_replace('|<[^<>]*>|',' ',"$title\n$content");
-	$content=preg_replace('|\s{2,}|',' ',$content);
+	$content = preg_replace('/[^a-zA-Z0-9_ %\[\]\.\(\)%&-]/s', ' ', "$title $content");
+	$content = trim(preg_replace('/\s+/', ' ', $content));
+
 	if(strlen($tags)) {
 		$subject=$tags;
 	} else {
 		$subject=$title;
-    }
+    	}
+
 	if(!function_exists('curl_init')) return 'cURL not available';
    	$yql = 'http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20contentanalysis.analyze%20where%20text%3D%22'.urlencode($content).'%22&format=json&callback=';
 
@@ -129,8 +128,13 @@ function gettags($title,$content,$tags) {
 	$response = curl_exec($ch);
 	$results = json_decode($response);
 	$yqltags = array();
-	foreach ($results->query->results->entities->entity as &$item){
-   		array_push($yqltags, $item->text->content);
+	
+	if (is_array($results->query->results->entities->entity)) {
+		foreach ($results->query->results->entities->entity as &$item){
+   			array_push($yqltags, $item->text->content);
+		}
+	} else {
+		return; 
 	}
 
 	if(curl_errno($ch)) return curl_error($ch);
